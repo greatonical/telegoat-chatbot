@@ -1,20 +1,27 @@
-import { Telegraf } from "telegraf";
+import { session, Telegraf } from "telegraf";
 import { assertRequired, cfg } from "./config";
 import type { TgCtx } from "./types";
 import { handleStart } from "./handlers/start";
 import { enterChat, onChatMessage } from "./handlers/chat";
 import { enterQuiz, onQuizAction } from "./handlers/quiz";
 import { enterInsights } from "./handlers/insights";
+import { startHttpServer } from "./http";
 
 assertRequired();
 
 const bot = new Telegraf<TgCtx>(cfg.botToken);
 
 // Simple in-memory session (just mode). For hackathons, this is enough.
-bot.use(async (ctx, next) => {
-  (ctx as any).session ??= {};
-  return next();
-});
+// bot.use(async (ctx, next) => {
+//   (ctx as any).session ??= {};
+//   return next();
+// });
+
+bot.use(
+  session({
+    defaultSession: (): { mode?: "CHAT" | "QUIZ" | "INSIGHTS" } => ({}),
+  })
+);
 
 bot.start(handleStart);
 
@@ -39,6 +46,16 @@ bot.on("message", async (ctx) => {
 bot.launch().then(() => {
   console.log("Telegoat bot running.");
 });
+
+bot.catch((err, ctx) => {
+  console.error("Bot error:", err);
+  ctx
+    .reply?.("😕 Something went wrong. Try again with /start.")
+    .catch(() => {});
+});
+
+// Start the health server (non-blocking)
+startHttpServer(() => ({}));
 
 // Graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));

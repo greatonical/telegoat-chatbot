@@ -2,6 +2,12 @@ import type { Context } from "telegraf";
 
 export type Mode = "CHAT" | "QUIZ" | "INSIGHTS";
 
+export interface SessionData { mode?: Mode; }
+
+export interface TgCtx extends Context {
+  session: SessionData; // <-- not optional anymore
+}
+
 export interface QuizQ {
   q: string;
   options: string[];
@@ -25,6 +31,6 @@ export interface InsightSummary {
   timestamp: string;
 }
 
-export interface TgCtx extends Context {
-  session?: { mode?: Mode };
-}
+// export interface TgCtx extends Context {
+//   session?: { mode?: Mode };
+// }

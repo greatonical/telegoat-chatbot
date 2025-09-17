@@ -1,20 +1,30 @@
-# Use Bun official image
-FROM oven/bun:1.0.29
-
-# Set working directory
+FROM oven/bun:1.2.0-alpine AS runtime
 WORKDIR /app
 
-# Copy all files
-COPY . .
+# Install curl for Docker HEALTHCHECK (tiny)
+RUN apk add --no-cache curl
 
-# Install deps (faster with bun.lockb)
-RUN bun install --frozen-lockfile
+# Install prod deps first for better layer cache
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile --production
 
-# Build or just check types if needed
+# Copy source after deps
+COPY tsconfig.json ./tsconfig.json
+COPY src ./src
+
+# Type-check at build
 RUN bun x tsc --noEmit
 
-# Expose port (adjust if needed)
-EXPOSE 3000
+# Non-root
+USER bun
 
-# Start app
+# Expose a health port
+ENV NODE_ENV=production PORT=4000
+EXPOSE 4000
+
+# Container-level healthcheck (30s cadence)
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -fsS http://localhost:8080/health || exit 1
+
+# Start polling bot + health server (index.ts calls startHttpServer)
 CMD ["bun", "run", "src/index.ts"]

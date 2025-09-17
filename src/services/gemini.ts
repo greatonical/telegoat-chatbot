@@ -16,3 +16,24 @@ export async function generateWithSystem(
   const res = await model.generateContent({ contents: [{ role: "user", parts }] });
   return res.response.text().trim();
 }
+
+export async function generateJSONWithSystem<T = unknown>(
+  systemPrompt: string,
+  userText: string
+): Promise<T> {
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction: systemPrompt,
+    // Hint to return JSON (Gemini supports this)
+    generationConfig: { responseMimeType: "application/json" }
+  });
+
+  const res = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userText }] }],
+  });
+
+  const text = res.response.text().trim();
+  // Sometimes models wrap JSON in code fences; strip if present
+  const cleaned = text.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+  return JSON.parse(cleaned) as T;
+}
